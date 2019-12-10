@@ -17,6 +17,8 @@
 package com.google.ar.sceneform.samples.animation;
 
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.ContextCompat;
@@ -27,8 +29,13 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 import com.google.ar.core.Anchor;
+import com.google.ar.core.AugmentedImage;
+import com.google.ar.core.AugmentedImageDatabase;
+import com.google.ar.core.Config;
+import com.google.ar.core.Frame;
 import com.google.ar.core.HitResult;
 import com.google.ar.core.Plane;
+import com.google.ar.core.TrackingState;
 import com.google.ar.sceneform.AnchorNode;
 import com.google.ar.sceneform.FrameTime;
 import com.google.ar.sceneform.Node;
@@ -39,6 +46,10 @@ import com.google.ar.sceneform.math.Vector3;
 import com.google.ar.sceneform.rendering.AnimationData;
 import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collection;
 
 /** Demonstrates playing animated FBX models. */
 public class MainActivity extends AppCompatActivity {
@@ -108,6 +119,48 @@ public class MainActivity extends AppCompatActivity {
       toast.setGravity(Gravity.CENTER, 0, 0);
       toast.show();
     }
+  }
+
+  private boolean setupAugmentedImageDb(Config config) {
+    AugmentedImageDatabase augmentedImageDatabase;
+
+    Bitmap augmentedImageBitmap = loadAugmentedImage();
+    if (augmentedImageBitmap == null) {
+      return false;
+    }
+
+    augmentedImageDatabase = new AugmentedImageDatabase(session);
+    augmentedImageDatabase.addImage("picTeamYudiz", augmentedImageBitmap);
+
+    config.setAugmentedImageDatabase(augmentedImageDatabase);
+    return true;
+  }
+
+  private Bitmap loadAugmentedImage() {
+    try (InputStream is = getAssets().open("test_image_1.png")) {
+      return BitmapFactory.decodeStream(is);
+    } catch (IOException e) {
+      Log.e(TAG, "IO exception loading augmented image bitmap.", e);
+    }
+    return null;
+  }
+
+  private void onUpdateFrame(FrameTime frameTime) {
+    Frame frame = arSceneView.getArFrame();
+    Collection updatedAugmentedImages =
+            frame.getUpdatedTrackables(AugmentedImage.class);
+
+    if (node == null)
+      node = new AugmentedImageNode(this);
+
+    for (AugmentedImage augmentedImage : updatedAugmentedImages) {
+      if (augmentedImage.getTrackingState() == TrackingState.TRACKING)
+        if (augmentedImage.getName().equals("test_image_1")) {
+          node.setImage(augmentedImage);
+          arSceneView.getScene().addChild(node);
+        }
+    }
+
   }
 
   /*
